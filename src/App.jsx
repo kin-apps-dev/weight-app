@@ -3,10 +3,8 @@ import styles from "./styles";
 import {
   formatValue,
   formatWeight,
-  getComment,
   getPreviousDiff,
   shortDate,
-  formatComment,
 } from "./utils";
 
 // ===== データ読み込み =====
@@ -79,6 +77,35 @@ function formatDateWithDay(dateStr) {
   return `${Number(month)}/${Number(date)}（${day}）`;
 }
 
+function getCalendarPoint(dateStr, monthCells, records) {
+  const index = monthCells.findIndex((cell) => cell === dateStr);
+  if (index === -1) return null;
+
+  const col = index % 7;
+  const row = Math.floor(index / 7);
+
+  const cellSize = 100 / 7;
+
+  // ===== 体重取得 =====
+  const record = records.find((r) => r.date === dateStr);
+  if (!record) return null;
+
+  const weights = records.map((r) => r.weight);
+  const min = Math.min(...weights);
+  const max = Math.max(...weights);
+  const range = Math.max(max - min, 0.5);
+
+  // ===== Y座標（ここが本質）=====
+  const baseY = row * 20 + 12;
+  const offset = ((record.weight - min) / range) * 10;
+
+  const gapAdjust = col * 0.8;
+  const x = col * cellSize + cellSize / 2 + gapAdjust;
+  const y = baseY - offset;
+
+  return { x, y };
+}
+
 // ===== App本体 =====
 export default function App() {
   const today = new Date().toISOString().slice(0, 10);
@@ -101,7 +128,7 @@ export default function App() {
 
     const newRecord = { date, weight: numericWeight };
 
-    const filtered = records.filter((r) => r.date !== date);
+    const filtered = records.filter((record) => record.date !== date);
     const updated = [...filtered, newRecord].sort((a, b) =>
       a.date.localeCompare(b.date)
     );
@@ -111,10 +138,12 @@ export default function App() {
     setLastSavedDate(date);
     setHasSaved(true);
     setWeight("");
+    setSelectedDate(date);
+    setCalendarMonth(date.slice(0, 7));
   };
 
   const handleDelete = (targetDate) => {
-    const targetRecord = records.find((r) => r.date === targetDate);
+    const targetRecord = records.find((record) => record.date === targetDate);
     if (!targetRecord) return;
 
     const confirmed = window.confirm(
@@ -123,7 +152,7 @@ export default function App() {
 
     if (!confirmed) return;
 
-    const updated = records.filter((r) => r.date !== targetDate);
+    const updated = records.filter((record) => record.date !== targetDate);
     setRecords(updated);
     localStorage.setItem("records", JSON.stringify(updated));
 
@@ -138,39 +167,10 @@ export default function App() {
     });
   };
 
-  // ===== 今日の体重カード用（トップ上部コメント欄は今は未使用だが維持）=====
-  const latest = records.at(-1) ?? null;
-  const prev = records.at(-2) ?? null;
   const first = records[0] ?? null;
-  const isToday = latest ? latest.date === today : false;
-
-  const diff =
-    isToday && latest && prev
-      ? (latest.weight - prev.weight).toFixed(1)
-      : null;
-
-  const total =
-    isToday && latest && first
-      ? (latest.weight - first.weight).toFixed(1)
-      : null;
-
-  const last7 = records.slice(-7);
-  const avg =
-    last7.length > 0
-      ? (last7.reduce((s, r) => s + r.weight, 0) / last7.length).toFixed(1)
-      : null;
-
-  const avgDiff =
-    isToday && latest && avg !== null
-      ? (latest.weight - Number(avg)).toFixed(1)
-      : null;
-
-  const comment = isToday
-    ? getComment(diff, total, avgDiff)
-    : "今日の記録を入れると表示されます";
 
   // ===== トップページ用 =====
-  const selectedRecord = records.find((r) => r.date === selectedDate) ?? null;
+  const selectedRecord = records.find((record) => record.date === selectedDate) ?? null;
 
   const weekAverage = useMemo(() => {
     const d = new Date(selectedDate);
@@ -183,18 +183,20 @@ export default function App() {
     const startStr = start.toISOString().slice(0, 10);
     const endStr = end.toISOString().slice(0, 10);
 
-    const target = records.filter((r) => r.date >= startStr && r.date <= endStr);
+    const target = records.filter(
+      (record) => record.date >= startStr && record.date <= endStr
+    );
     if (target.length === 0) return null;
 
-    return target.reduce((acc, r) => acc + r.weight, 0) / target.length;
+    return target.reduce((acc, record) => acc + record.weight, 0) / target.length;
   }, [records, selectedDate]);
 
   const monthAverage = useMemo(() => {
     const prefix = selectedDate.slice(0, 7);
-    const target = records.filter((r) => r.date.startsWith(prefix));
+    const target = records.filter((record) => record.date.startsWith(prefix));
     if (target.length === 0) return null;
 
-    return target.reduce((acc, r) => acc + r.weight, 0) / target.length;
+    return target.reduce((acc, record) => acc + record.weight, 0) / target.length;
   }, [records, selectedDate]);
 
   const recordsMap = useMemo(() => {
@@ -206,16 +208,52 @@ export default function App() {
   }, [records]);
 
   const monthCells = useMemo(() => buildMonthCells(calendarMonth), [calendarMonth]);
+  const selectedPoint = getCalendarPoint(selectedDate, monthCells, records)
+  const allPoints = records
+    .map((record) => getCalendarPoint(record.date, monthCells, records))
+    .filter(Boolean);
+  const groupedPoints = [];
+
+  let currentGroup = [];
+  let prevIndex = null;
+  let prevRow = null;
+
+  records
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .forEach((record) => {
+      const index = monthCells.findIndex((d) => d === record.date);
+      const point = getCalendarPoint(record.date, monthCells, records);
+
+      if (!point || index === -1) return;
+
+      const row = Math.floor(index / 7);
+
+      const shouldBreak =
+        prevIndex !== null &&
+        (index !== prevIndex + 1 || row !== prevRow);
+
+      if (shouldBreak) {
+        if (currentGroup.length > 0) {
+          groupedPoints.push(currentGroup);
+        }
+        currentGroup = [];
+      }
+
+      currentGroup.push(point);
+      prevIndex = index;
+      prevRow = row;
+    });
+
+  if (currentGroup.length > 0) {
+    groupedPoints.push(currentGroup);
+  }
   const weekdayLabels = ["日", "月", "火", "水", "木", "金", "土"];
 
   // ===== 記入ページ用 =====
   const reversedRecords = [...records].reverse();
-  const selectedInputRecord = records.find((r) => r.date === selectedDate) ?? null;
-  const selectedInputDiff = selectedInputRecord
-    ? getPreviousDiff(records, selectedInputRecord.date)
-    : null;
+  const selectedInputRecord = records.find((record) => record.date === selectedDate) ?? null;
 
-  const lastSavedRecord = records.find((r) => r.date === lastSavedDate) ?? null;
+  const lastSavedRecord = records.find((record) => record.date === lastSavedDate) ?? null;
   const lastSavedDiff = lastSavedRecord
     ? getPreviousDiff(records, lastSavedRecord.date)
     : null;
@@ -320,36 +358,67 @@ export default function App() {
                 ))}
               </div>
 
-              <div style={styles.calendarGrid}>
-                {monthCells.map((cellDate, index) => {
-                  if (!cellDate) {
-                    return <div key={`blank-${index}`} style={styles.calendarBlankCell} />;
-                  }
+            <div style={styles.calendarGrid}>
+            <svg viewBox="0 0 100 100" style={styles.calendarOverlay}>
+              {groupedPoints.map((group, i) => (
+                <polyline
+                  key={i}
+                  points={group.map((p) => `${p.x},${p.y}`).join(" ")}
+                  fill="none"
+                  stroke="#94a3b8"
+                  strokeWidth="1"
+                />
+              ))}
 
-                  const isSelected = cellDate === selectedDate;
-                  const weightValue = recordsMap.get(cellDate);
-                  const dayNumber = Number(cellDate.slice(8, 10));
+              {allPoints.map((point, index) => (
+                <circle
+                  key={index}
+                  cx={point.x}
+                  cy={point.y}
+                  r="1.5"
+                  fill="#94a3b8"
+                />
+              ))}
 
-                  return (
-                    <button
-                      key={cellDate}
-                      onClick={() => {
-                        setSelectedDate(cellDate);
-                        setCalendarMonth(getMonthStart(cellDate).slice(0, 7));
-                      }}
-                      style={{
-                        ...styles.calendarCell,
-                        ...(isSelected ? styles.calendarCellSelected : {}),
-                      }}
-                    >
-                      <div style={styles.calendarDay}>{dayNumber}</div>
-                      <div style={styles.calendarWeight}>
-                        {weightValue !== undefined ? weightValue.toFixed(1) : ""}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
+              {selectedPoint && (
+                <circle
+                  cx={selectedPoint.x}
+                  cy={selectedPoint.y}
+                  r="2"
+                  fill="#111827"
+                />
+              )}
+            </svg>
+
+              {monthCells.map((cellDate, index) => {
+                if (!cellDate) {
+                  return <div key={`blank-${index}`} style={styles.calendarBlankCell} />;
+                }
+
+                const isSelected = cellDate === selectedDate;
+                const weightValue = recordsMap.get(cellDate);
+                const dayNumber = Number(cellDate.slice(8, 10));
+
+                return (
+                  <button
+                    key={cellDate}
+                    onClick={() => {
+                      setSelectedDate(cellDate);
+                      setCalendarMonth(getMonthStart(cellDate).slice(0, 7));
+                    }}
+                    style={{
+                      ...styles.calendarCell,
+                      ...(isSelected ? styles.calendarCellSelected : {}),
+                    }}
+                  >
+                    <div style={styles.calendarDay}>{dayNumber}</div>
+                    <div style={styles.calendarWeight}>
+                      {weightValue !== undefined ? weightValue.toFixed(1) : ""}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
             </section>
           </>
         )}
@@ -393,18 +462,20 @@ export default function App() {
             </section>
 
             {hasSaved && (
-            <section style={styles.resultCard}>
-              <div style={styles.resultDate}>{formatDateWithDay(lastSavedDate)} の記録</div>
+              <section style={styles.resultCard}>
+                <div style={styles.resultDate}>
+                  {formatDateWithDay(lastSavedDate)} の記録
+                </div>
 
-              <div style={styles.resultMain}>
-                {lastSavedRecord ? `${lastSavedRecord.weight.toFixed(1)} kg` : "--.- kg"}
-              </div>
+                <div style={styles.resultMain}>
+                  {lastSavedRecord ? `${lastSavedRecord.weight.toFixed(1)} kg` : "--.- kg"}
+                </div>
 
-              <div style={styles.resultSub}>
-                <span>前回比 {formatValue(lastSavedDiff)} kg</span>
-                <span>開始時との差 {formatValue(lastSavedTotal)} kg</span>
-              </div>
-            </section>
+                <div style={styles.resultSub}>
+                  <span>前回比 {formatValue(lastSavedDiff)} kg</span>
+                  <span>開始時との差 {formatValue(lastSavedTotal)} kg</span>
+                </div>
+              </section>
             )}
 
             <section style={styles.historyCard}>
@@ -418,22 +489,26 @@ export default function App() {
               ) : (
                 <>
                   <div style={styles.gridList}>
-                    {reversedRecords.map((r) => {
-                      const recordDiff = getPreviousDiff(records, r.date);
-                      const isSelected = selectedDate === r.date;
+                    {reversedRecords.map((record) => {
+                      const recordDiff = getPreviousDiff(records, record.date);
+                      const isSelected = selectedDate === record.date;
 
                       return (
                         <button
-                          key={r.date}
-                          onClick={() => setSelectedDate(r.date)}
+                          key={record.date}
+                          onClick={() => setSelectedDate(record.date)}
                           style={{
                             ...styles.gridCard,
                             ...(isSelected ? styles.gridCardSelected : {}),
                           }}
                         >
-                          <div style={styles.gridDate}>{shortDate(r.date)}</div>
-                          <div style={styles.gridWeight}>{r.weight.toFixed(1)} kg</div>
-                          <div style={styles.gridDiff}>前回比 {formatValue(recordDiff)} kg</div>
+                          <div style={styles.gridDate}>{shortDate(record.date)}</div>
+                          <div style={styles.gridWeight}>
+                            {record.weight.toFixed(1)} kg
+                          </div>
+                          <div style={styles.gridDiff}>
+                            前回比 {formatValue(recordDiff)} kg
+                          </div>
                         </button>
                       );
                     })}
@@ -441,7 +516,9 @@ export default function App() {
 
                   <div style={styles.selectedCard}>
                     <button
-                      onClick={() => selectedInputRecord && handleDelete(selectedInputRecord.date)}
+                      onClick={() =>
+                        selectedInputRecord && handleDelete(selectedInputRecord.date)
+                      }
                       style={styles.deleteMainButton}
                       disabled={!selectedInputRecord}
                     >

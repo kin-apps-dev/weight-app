@@ -1,4 +1,3 @@
-// src/styles.js
 const inputBase = {
   width: "100%",
   minWidth: 0,
@@ -57,38 +56,62 @@ const styles = {
     color: "#ffffff",
     border: "1px solid #111827",
   },
-    sectionTitle: {
+  sectionTitle: {
     fontSize: 13,
     fontWeight: 600,
     color: "#64748b",
     marginBottom: 0,
-    },
+  },
   summary: {
     background: "#ffffff",
-    padding: 20,
+    padding: 16,
     borderRadius: 16,
     marginBottom: 16,
     boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
   },
+  summaryHeader: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: 12,
+    marginBottom: 8,
+  },
+  summaryColumn: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+  },
   selectedDateText: {
-    fontSize: 24, // ← mainWeightと同じにする
-    fontWeight: "bold",
-    textAlign: "center",
+    fontSize: 24,
+    fontWeight: 500,
     color: "#111827",
     marginTop: 4,
   },
-   mainWeight: {
-    fontSize: 24, // ← 34 → 24（約70%）
+  mainWeight: {
+    fontSize: 24,
     fontWeight: "bold",
     textAlign: "center",
-    marginBottom: 14,
+    marginBottom: 0,
     color: "#111827",
-    },
+    marginTop: 4,
+  },
   metrics: {
     display: "flex",
     flexDirection: "column",
     gap: 8,
-    marginBottom: 12,
+    marginTop: 8,
+  },
+  metricGrid: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: 8,
+  },
+  metricHalf: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    background: "#f8fafc",
+    borderRadius: 10,
+    padding: "10px 12px",
   },
   metricRow: {
     display: "flex",
@@ -106,23 +129,7 @@ const styles = {
     fontSize: 15,
     color: "#111827",
   },
-  commentBox: {
-    lineHeight: 1.8,
-    fontSize: 14,
-    color: "#334155",
-    background: "#f8fafc",
-    borderRadius: 12,
-    padding: 12,
-    whiteSpace: "pre-line",
-  },
   formCard: {
-    background: "#ffffff",
-    padding: 16,
-    borderRadius: 16,
-    marginBottom: 16,
-    boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
-  },
-  resultCard: {
     background: "#ffffff",
     padding: 16,
     borderRadius: 16,
@@ -201,11 +208,21 @@ const styles = {
     color: "#94a3b8",
   },
   calendarGrid: {
+    position: "relative",
     display: "grid",
     gridTemplateColumns: "repeat(7, 1fr)",
     gap: 6,
-    marginBottom: 16,
   },
+
+  calendarOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+    pointerEvents: "none",
+  },
+
   calendarBlankCell: {
     minHeight: 58,
   },
@@ -235,31 +252,33 @@ const styles = {
     lineHeight: 1.2,
     minHeight: 14,
   },
-  detailCard: {
-    background: "#f8fafc",
-    borderRadius: 12,
-    padding: 12,
+  resultCard: {
+    background: "#ffffff",
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 16,
+    boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
   },
-  detailRow: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: "10px 0",
-    borderBottom: "1px solid #e2e8f0",
+  resultDate: {
+    fontSize: 13,
+    color: "#64748b",
+    textAlign: "center",
+    marginBottom: 4,
   },
-  detailRowLast: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: "10px 0 0 0",
-  },
-  detailLabel: {
-    fontSize: 14,
-    color: "#475569",
-  },
-  detailValue: {
-    fontSize: 15,
+  resultMain: {
+    fontSize: 24,
+    fontWeight: "bold",
+    textAlign: "center",
     color: "#111827",
+    marginBottom: 6,
+  },
+  resultSub: {
+    display: "flex",
+    justifyContent: "center",
+    gap: 16,
+    fontSize: 13,
+    color: "#475569",
+    flexWrap: "wrap",
   },
   historyCard: {
     background: "#ffffff",
@@ -323,9 +342,6 @@ const styles = {
   selectedCard: {
     marginTop: 4,
   },
-  selectedHeader: {
-    marginBottom: 8,
-  },
   deleteMainButton: {
     width: "100%",
     marginTop: 12,
@@ -336,53 +352,6 @@ const styles = {
     color: "#334155",
     fontSize: 14,
     cursor: "pointer",
-  },
-  metricGrid: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: 8,
-  },
-
-  metricHalf: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    background: "#f8fafc",
-    borderRadius: 10,
-    padding: "10px 12px",
-  },
-   summaryHeader: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: 12,
-    marginBottom: 8,
-    },
-
-   summaryColumn: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    },
-   resultMain: {
-    fontSize: 20,
-    fontWeight: "bold",
-    textAlign: "center",
-    color: "#111827",
-    marginBottom: 6,
-    },
-
-  resultSub: {
-    display: "flex",
-    justifyContent: "center",
-    gap: 16,
-    fontSize: 13,
-    color: "#475569",
-  },
-  resultDate: {
-    fontSize: 13,
-    color: "#64748b",
-    textAlign: "center",
-    marginBottom: 4,
   },
 };
 
