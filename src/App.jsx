@@ -215,7 +215,6 @@ export default function App() {
   const groupedPoints = [];
 
   let currentGroup = [];
-  let prevIndex = null;
   let prevRow = null;
 
   records
@@ -228,11 +227,7 @@ export default function App() {
 
       const row = Math.floor(index / 7);
 
-      const shouldBreak =
-        prevIndex !== null &&
-        (index !== prevIndex + 1 || row !== prevRow);
-
-      if (shouldBreak) {
+      if (prevRow !== null && row !== prevRow) {
         if (currentGroup.length > 0) {
           groupedPoints.push(currentGroup);
         }
@@ -240,13 +235,13 @@ export default function App() {
       }
 
       currentGroup.push(point);
-      prevIndex = index;
       prevRow = row;
     });
 
   if (currentGroup.length > 0) {
     groupedPoints.push(currentGroup);
   }
+
   const weekdayLabels = ["日", "月", "火", "水", "木", "金", "土"];
 
   // ===== 記入ページ用 =====
